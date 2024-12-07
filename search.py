@@ -278,30 +278,27 @@ class PDFSearchGUI:
             current_line += len(headings) + 2
 
     def get_sentence_context(self, text, pos, search_term_len):
+        CONTEXT_CHAR_LENGTH = 2000
+
         text_before = text[:pos]
         text_after = text[pos + search_term_len :]
 
-        sentence_end_before = max(
-            text_before.rfind(". "), text_before.rfind("! "), text_before.rfind("? ")
-        )
-        if sentence_end_before == -1:
-            start = max(0, pos - 200)
+        start = max(0, pos - CONTEXT_CHAR_LENGTH)
+        sentence_starts = [m.end() for m in re.finditer(r'[.!?] +', text[start:pos])]
+        if sentence_starts:
+            start = start + sentence_starts[0]
+        else:
+            start = max(0, pos - CONTEXT_CHAR_LENGTH)
             if start > 0:
                 while start < pos and not text[start].isspace():
                     start += 1
-        else:
-            start = sentence_end_before + 2
 
-        next_period = text_after.find(". ")
-        next_exclaim = text_after.find("! ")
-        next_question = text_after.find("? ")
-        sentence_ends = [
-            e for e in [next_period, next_exclaim, next_question] if e != -1
-        ]
-        if sentence_ends:
-            end = pos + search_term_len + min(sentence_ends) + 2
+        end_search_pos = min(len(text_after), CONTEXT_CHAR_LENGTH)
+        sentence_ends = [m.start() for m in re.finditer(r'[.!?] +', text_after[:end_search_pos])]
+        if sentence_ends and len(sentence_ends) > 2:
+            end = pos + search_term_len + sentence_ends[-1] + 2
         else:
-            end = min(pos + search_term_len + 200, len(text))
+            end = min(pos + search_term_len + CONTEXT_CHAR_LENGTH, len(text))
             while end > pos and not text[end - 1].isspace():
                 end -= 1
 
